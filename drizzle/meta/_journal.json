@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1781057299658,
+      "tag": "0000_flippant_radioactive_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1781057430414,
+      "tag": "0001_concerned_yellowjacket",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1781062827999,
+      "tag": "0002_overjoyed_revanche",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1781070205637,
+      "tag": "0003_acoustic_blade",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1781071830148,
+      "tag": "0004_minor_brother_voodoo",
+      "breakpoints": true
+    }
+  ]
+}
