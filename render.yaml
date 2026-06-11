@@ -2,7 +2,7 @@ services:
   - type: web
     name: ad-compliance-checker
     runtime: node
-    buildCommand: pnpm install && pnpm build && pnpm db:push
+    buildCommand: pnpm install && pnpm build
     startCommand: pnpm start
     envVars:
       - key: NODE_ENV
