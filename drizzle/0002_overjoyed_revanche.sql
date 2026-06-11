@@ -1,1 +1,0 @@
-ALTER TABLE `check_items` MODIFY COLUMN `category` enum('yakujiho','keihyo','iryokokoku','gyoseishoshi','other') NOT NULL;

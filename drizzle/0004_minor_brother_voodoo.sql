@@ -1,1 +1,0 @@
-ALTER TABLE `checks` MODIFY COLUMN `imageBase64` mediumtext;
