@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { analyzeAdImage } from "./compliance";
+import { analyzeAdImage, type ImageInput } from "./compliance";
 import { generateCompliancePdf } from "./pdfExport";
 import {
   createCheck,
@@ -73,15 +73,29 @@ export const appRouter = router({
         const check = await getCheckById(input.checkId);
         if (!check) throw new Error("Check not found");
 
-        // Use base64 stored in DB directly
-        if (!check.imageBase64 || !check.imageMimeType) {
-          throw new Error("Image data not found");
+        let imageForOcr: ImageInput;
+
+        if (check.imageMimeType?.startsWith("video/")) {
+          // 動画: Gemini Files API URI が imageUrl に保存されている
+          if (!check.imageUrl || !check.imageMimeType) {
+            throw new Error("Video URI not found");
+          }
+          imageForOcr = {
+            type: "video-uri",
+            uri: check.imageUrl,
+            mimeType: check.imageMimeType,
+          };
+        } else {
+          // 画像: DB に保存された base64 を使用
+          if (!check.imageBase64 || !check.imageMimeType) {
+            throw new Error("Image data not found");
+          }
+          imageForOcr = {
+            type: "base64",
+            data: check.imageBase64,
+            mimeType: check.imageMimeType,
+          };
         }
-        const imageForOcr = {
-          type: "base64" as const,
-          data: check.imageBase64,
-          mimeType: check.imageMimeType,
-        };
 
         const result = await analyzeAdImage(imageForOcr);
 

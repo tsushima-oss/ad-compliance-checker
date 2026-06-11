@@ -19,12 +19,14 @@ import {
   Scale,
   ImageIcon,
   Loader2,
-  Download,
+  Video,
   Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 type RiskLevel = "high" | "medium" | "low";
 type Category = "yakujiho" | "keihyo" | "iryokokoku" | "gyoseishoshi" | "other";
@@ -77,7 +79,7 @@ function ViolationCard({ item }: { item: any }) {
   const CatIcon = cat.icon;
 
   return (
-    <div className={cn("rounded-xl border bg-card overflow-hidden transition-shadow duration-200 hover:shadow-sm", risk.border)}>
+    <div data-violation-card className={cn("rounded-xl border bg-card overflow-hidden transition-shadow duration-200 hover:shadow-sm", risk.border)}>
       {/* ヘッダー */}
       <button
         onClick={() => setExpanded(v => !v)}
@@ -153,13 +155,7 @@ export default function ResultPage() {
     { enabled: !!checkId }
   );
 
-  // ブラウザ印刷機能でPDFとして保存（サーバー不要・日本語対応・軽量）
-  const handlePrintPdf = () => {
-    toast.info("印刷ダイアログが開きます。「PDFとして保存」を選択してください。");
-    setTimeout(() => window.print(), 300);
-  };
-  // 互換性のためのダミー（未使用の変数を消す）
-  const exportPdf = { isPending: false };
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   if (isLoading) {
     return (
@@ -191,6 +187,77 @@ export default function ResultPage() {
   const { check, items } = data ?? { check: null, items: [] };
   const overallConfig = OVERALL_RISK_CONFIG[(check?.overallRisk ?? "safe") as OverallRisk] ?? OVERALL_RISK_CONFIG.safe;
   const OverallIcon = overallConfig.icon;
+
+  // NGカードを html2canvas でキャプチャして jsPDF にまとめる
+  const handlePrintPdf = async () => {
+    const violationCards = document.querySelectorAll<HTMLElement>("[data-violation-card]");
+    if (violationCards.length === 0) {
+      toast.info("NG項目がないためPDFレポートはありません。");
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+    toast.info("PDFを生成中...");
+
+    try {
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentW = pageW - margin * 2;
+      let yPos = margin;
+      let isFirstPage = true;
+
+      // ヘッダー（ASCII テキスト）
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "bold");
+      pdf.text(`Ad Compliance Report  #${checkId}`, margin, yPos);
+      yPos += 6;
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(
+        `Overall Risk: ${overallConfig.label}  |  Violations: ${violationCards.length}`,
+        margin,
+        yPos
+      );
+      yPos += 8;
+
+      for (const card of Array.from(violationCards)) {
+        const canvas = await html2canvas(card, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+        });
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
+        const ratio = canvas.height / canvas.width;
+        const imgH = contentW * ratio;
+
+        if (!isFirstPage && yPos + imgH > pageH - margin) {
+          pdf.addPage();
+          yPos = margin;
+        }
+        isFirstPage = false;
+
+        if (yPos + imgH > pageH - margin) {
+          pdf.addPage();
+          yPos = margin;
+        }
+
+        pdf.addImage(imgData, "JPEG", margin, yPos, contentW, imgH);
+        yPos += imgH + 4;
+      }
+
+      pdf.save(`ad-compliance-report-${checkId}.pdf`);
+      toast.success("PDFを保存しました");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "不明なエラー";
+      toast.error("PDF生成に失敗しました", { description: message });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   // カテゴリ別に分類
   const byCategory = items.reduce<Record<string, typeof items>>((acc, item) => {
@@ -225,10 +292,15 @@ export default function ResultPage() {
             variant="outline"
             size="sm"
             onClick={handlePrintPdf}
+            disabled={isGeneratingPdf}
             className="gap-2 border-primary/30 text-primary hover:bg-primary/5 hover:text-primary"
           >
-            <Printer className="h-4 w-4" />
-            PDFレポートをDL
+            {isGeneratingPdf ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Printer className="h-4 w-4" />
+            )}
+            {isGeneratingPdf ? "生成中..." : "PDFレポートをDL"}
           </Button>
         </div>
 
@@ -236,21 +308,32 @@ export default function ResultPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 左カラム：画像・総合評価 */}
           <div className="lg:col-span-1 space-y-4">
-            {/* 画像プレビュー */}
+            {/* ファイルプレビュー */}
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               <div className="bg-muted/30 flex items-center justify-center min-h-[200px] p-4">
-                <img
-                  src={check.imageUrl}
-                  alt="チェック対象"
-                  className="max-h-[300px] max-w-full object-contain rounded-lg"
-                  onError={e => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
+                {check.imageMimeType?.startsWith("video/") ? (
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <Video className="h-16 w-16 opacity-40" />
+                    <span className="text-xs">{check.fileName ?? "動画ファイル"}</span>
+                  </div>
+                ) : (
+                  <img
+                    src={check.imageUrl}
+                    alt="チェック対象"
+                    className="max-h-[300px] max-w-full object-contain rounded-lg"
+                    onError={e => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                )}
               </div>
               {check.fileName && (
                 <div className="px-4 py-3 border-t border-border flex items-center gap-2">
-                  <ImageIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  {check.imageMimeType?.startsWith("video/") ? (
+                    <Video className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  ) : (
+                    <ImageIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  )}
                   <span className="text-xs text-muted-foreground truncate">{check.fileName}</span>
                 </div>
               )}

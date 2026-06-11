@@ -1,4 +1,5 @@
 import { invokeLLM, type Message } from "./_core/llm";
+import { ENV } from "./_core/env";
 
 export type RiskLevel = "high" | "medium" | "low";
 export type Category = "yakujiho" | "keihyo" | "iryokokoku" | "gyoseishoshi" | "other";
@@ -89,49 +90,100 @@ const SYSTEM_PROMPT = `あなたは日本の広告規制の専門家です。
 
 export type ImageInput =
   | { type: "base64"; data: string; mimeType: string }
-  | { type: "url"; url: string };
+  | { type: "url"; url: string }
+  | { type: "video-uri"; uri: string; mimeType: string };
 
 /**
- * 画像（base64またはURL）からOCRでテキストを抽出し、広告規制チェックを行う
+ * 動画ファイル（Gemini Files API URI）からテキストを抽出する
+ */
+async function extractTextFromVideo(fileUri: string, mimeType: string): Promise<string> {
+  const apiKey = ENV.googleAiApiKey;
+  if (!apiKey) throw new Error("GOOGLE_AI_API_KEY is not configured");
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                file_data: {
+                  mime_type: mimeType,
+                  file_uri: fileUri,
+                },
+              },
+              {
+                text: "この動画広告に表示されるすべてのテキストを正確に抽出してください。すべてのフレームに表示されるテキスト・字幕・テロップを漏れなく抽出し、テキストのみを返してください。説明は不要です。テキストが存在しない場合は「テキストなし」と返してください。",
+              },
+            ],
+          },
+        ],
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini video OCR failed: ${response.status} – ${errText}`);
+  }
+
+  const result = (await response.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+
+  return result.candidates?.[0]?.content?.parts?.[0]?.text ?? "テキスト抽出に失敗しました";
+}
+
+/**
+ * 画像または動画からOCRでテキストを抽出し、広告規制チェックを行う
  */
 export async function analyzeAdImage(image: ImageInput): Promise<ComplianceResult> {
-  // Step 1: OCR - 画像からテキストを抽出
-  // base64の場合は data URI 形式で渡す（外部URL不要）
-  const imageUrl = image.type === "base64"
-    ? `data:${image.mimeType};base64,${image.data}`
-    : image.url;
+  // Step 1: OCR - ファイルからテキストを抽出
+  let extractedText: string;
 
-  const ocrMessages: Message[] = [
-    {
-      role: "system",
-      content: "あなたは高精度OCRシステムです。画像に含まれるすべてのテキストを正確に抽出してください。テキストの位置関係・改行を保持し、画像内のすべての文字を漏れなく抽出してください。テキストのみを返し、説明は不要です。テキストが存在しない場合は「テキストなし」と返してください。",
-    },
-    {
-      role: "user",
-      content: [
-        {
-          type: "image_url",
-          image_url: {
-            url: imageUrl,
-            detail: "high",
+  if (image.type === "video-uri") {
+    // 動画: Gemini Files API URI を使って直接解析
+    extractedText = await extractTextFromVideo(image.uri, image.mimeType);
+  } else {
+    // 画像: data URI または URL で Gemini に渡す
+    const imageUrl = image.type === "base64"
+      ? `data:${image.mimeType};base64,${image.data}`
+      : image.url;
+
+    const ocrMessages: Message[] = [
+      {
+        role: "system",
+        content: "あなたは高精度OCRシステムです。画像に含まれるすべてのテキストを正確に抽出してください。テキストの位置関係・改行を保持し、画像内のすべての文字を漏れなく抽出してください。テキストのみを返し、説明は不要です。テキストが存在しない場合は「テキストなし」と返してください。",
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: {
+              url: imageUrl,
+              detail: "high",
+            },
           },
-        },
-        {
-          type: "text",
-          text: "この画像に含まれるすべてのテキストを抽出してください。",
-        },
-      ],
-    },
-  ];
-  // gemini-2.5-flash: data URI形式のbase64画像をサポート（claude-haiku-4-5はBedrockの制限でdata URI不可）
-  const ocrResponse = await invokeLLM({ model: "gemini-2.5-flash", messages: ocrMessages });
+          {
+            type: "text",
+            text: "この画像に含まれるすべてのテキストを抽出してください。",
+          },
+        ],
+      },
+    ];
+    const ocrResponse = await invokeLLM({ model: "gemini-2.5-flash", messages: ocrMessages });
 
-  const rawContent = ocrResponse.choices?.[0]?.message?.content;
-  const extractedText: string = typeof rawContent === "string"
-    ? rawContent
-    : Array.isArray(rawContent)
-      ? rawContent.map(p => (p.type === "text" ? p.text : "")).join("")
-      : "テキスト抽出に失敗しました";
+    const rawContent = ocrResponse.choices?.[0]?.message?.content;
+    extractedText = typeof rawContent === "string"
+      ? rawContent
+      : Array.isArray(rawContent)
+        ? rawContent.map(p => (p.type === "text" ? p.text : "")).join("")
+        : "テキスト抽出に失敗しました";
+  }
 
   // Step 2: 規制チェック
   const checkResponse = await invokeLLM({ model: "claude-sonnet-4-6",

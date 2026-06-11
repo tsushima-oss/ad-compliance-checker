@@ -2,59 +2,49 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Upload, ImageIcon, ShieldCheck, Loader2, Sparkles, AlertTriangle, CheckCircle2, Info, Scale, BookOpen, ExternalLink, TriangleAlert, Cpu, FlaskConical } from "lucide-react";
+import { Upload, ImageIcon, ShieldCheck, Loader2, Sparkles, AlertTriangle, CheckCircle2, Info, Scale, BookOpen, ExternalLink, TriangleAlert, Cpu, FlaskConical, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import AppNav from "@/components/AppNav";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(",")[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const ACCEPTED_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm", "video/x-msvideo"];
+const ACCEPTED_TYPES = [...ACCEPTED_IMAGE_TYPES, ...ACCEPTED_VIDEO_TYPES];
 
 export default function Home() {
   const [, navigate] = useLocation();
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isVideo, setIsVideo] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // プレビューURLのメモリリーク防止
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
 
-  const uploadMutation = trpc.compliance.uploadImage.useMutation();
   const analyzeMutation = trpc.compliance.analyze.useMutation();
 
   const handleFile = useCallback((file: File) => {
     if (!ACCEPTED_TYPES.includes(file.type)) {
       toast.error("対応していないファイル形式です", {
-        description: "JPEG、PNG、WebP、GIF形式の画像をアップロードしてください。",
+        description: "JPEG・PNG・WebP・GIF・MP4・MOV・WebM形式をアップロードしてください。",
       });
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
       toast.error("ファイルサイズが大きすぎます", {
-        description: "10MB以下の画像をアップロードしてください。",
+        description: "100MB以下のファイルをアップロードしてください。",
       });
       return;
     }
     setSelectedFile(file);
+    setIsVideo(ACCEPTED_VIDEO_TYPES.includes(file.type));
     const url = URL.createObjectURL(file);
     setPreview(url);
   }, []);
@@ -92,14 +82,28 @@ export default function Home() {
     setIsAnalyzing(true);
     let checkId: number | null = null;
     try {
-      setAnalysisStep("画像をアップロード中...");
-      const base64 = await fileToBase64(selectedFile);
-      const result = await uploadMutation.mutateAsync({
-        base64,
-        mimeType: selectedFile.type,
-        fileName: selectedFile.name,
+      setAnalysisStep(
+        isVideo
+          ? "動画をアップロード中（時間がかかる場合があります）..."
+          : "画像をアップロード中..."
+      );
+
+      // FormData でファイルをアップロード（画像・動画共通）
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
       });
-      checkId = result.checkId;
+
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json().catch(() => ({ error: "アップロードに失敗しました" })) as { error?: string };
+        throw new Error(errData.error ?? `Upload failed: ${uploadRes.status}`);
+      }
+
+      const uploadData = (await uploadRes.json()) as { checkId: number; imageUrl: string };
+      checkId = uploadData.checkId;
 
       setAnalysisStep("OCRでテキストを抽出中...");
       await new Promise(r => setTimeout(r, 800));
@@ -109,17 +113,13 @@ export default function Home() {
 
       toast.success("チェック完了", { description: "結果ページに移動します。" });
       navigate(`/result/${checkId}`);
-    } catch (err: any) {
-      // アップロード後に解析失敗した場合も結果ページに遷移してエラー状態を表示する
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "しばらく時間をおいて再試行してください。";
       if (checkId !== null) {
-        toast.error("解析に失敗しました。結果ページで再試できます。", {
-          description: err?.message ?? "しばらく時間をおいて再試行してください。",
-        });
+        toast.error("解析に失敗しました。結果ページで再試できます。", { description: message });
         navigate(`/result/${checkId}`);
       } else {
-        toast.error("アップロードに失敗しました", {
-          description: err?.message ?? "しばらく時間をおいて再試行してください。",
-        });
+        toast.error("アップロードに失敗しました", { description: message });
       }
     } finally {
       setIsAnalyzing(false);
@@ -130,6 +130,7 @@ export default function Home() {
   const handleReset = () => {
     setSelectedFile(null);
     setPreview(null);
+    setIsVideo(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -189,13 +190,13 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="text-base font-semibold text-foreground mb-1">
-                    {isDragging ? "ここにドロップ" : "画像をドラッグ&ドロップ"}
+                    {isDragging ? "ここにドロップ" : "画像・動画をドラッグ&ドロップ"}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     またはクリックしてファイルを選択
                   </p>
                   <p className="text-xs text-muted-foreground/70 mt-2">
-                    JPEG・PNG・WebP・GIF ／ 最大10MB
+                    画像: JPEG・PNG・WebP・GIF ／ 動画: MP4・MOV・WebM ／ 最大100MB
                   </p>
                 </div>
               </div>
@@ -204,23 +205,39 @@ export default function Home() {
             <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
               {/* プレビュー */}
               <div className="relative bg-muted/30 flex items-center justify-center min-h-[280px] p-4">
-                <img
-                  src={preview}
-                  alt="プレビュー"
-                  className="max-h-[400px] max-w-full object-contain rounded-lg shadow-md"
-                />
+                {isVideo ? (
+                  <video
+                    src={preview}
+                    controls
+                    className="max-h-[400px] max-w-full rounded-lg shadow-md"
+                  />
+                ) : (
+                  <img
+                    src={preview}
+                    alt="プレビュー"
+                    className="max-h-[400px] max-w-full object-contain rounded-lg shadow-md"
+                  />
+                )}
               </div>
 
               {/* ファイル情報 */}
               <div className="px-6 py-4 border-t border-border flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                    <ImageIcon className="h-4 w-4 text-primary" />
+                    {isVideo ? (
+                      <Video className="h-4 w-4 text-primary" />
+                    ) : (
+                      <ImageIcon className="h-4 w-4 text-primary" />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{selectedFile?.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {selectedFile ? (selectedFile.size / 1024).toFixed(1) + " KB" : ""}
+                      {selectedFile
+                        ? selectedFile.size >= 1024 * 1024
+                          ? (selectedFile.size / 1024 / 1024).toFixed(1) + " MB"
+                          : (selectedFile.size / 1024).toFixed(1) + " KB"
+                        : ""}
                     </p>
                   </div>
                 </div>
@@ -249,6 +266,11 @@ export default function Home() {
                   <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                     <div className="h-full bg-primary rounded-full animate-pulse w-2/3" />
                   </div>
+                  {isVideo && (
+                    <p className="text-xs text-muted-foreground/70 text-center">
+                      動画の場合、アップロードと解析に数分かかる場合があります。
+                    </p>
+                  )}
                 </div>
               ) : (
                 <Button
@@ -329,7 +351,7 @@ export default function Home() {
                   color: "text-indigo-600",
                   bg: "bg-indigo-50",
                   title: "OCRテキスト抽出",
-                  body: "大規模言語モデル（LLM）のVision機能を使用し、画像内のテキストを高精度で抽出します。日本語・英語混在の広告バナーに対応しています。",
+                  body: "大規模言語モデル（LLM）のVision機能を使用し、画像・動画内のテキストを高精度で抽出します。日本語・英語混在の広告バナーに対応しています。",
                   note: "手書き・装飾フォント・極小文字は精度が下がる場合があります",
                 },
                 {
