@@ -2,7 +2,8 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
-import { readFileSync, unlinkSync } from "fs";
+import { createReadStream, readFileSync, statSync, unlinkSync } from "fs";
+import { Readable } from "stream";
 import { tmpdir } from "os";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import multer from "multer";
@@ -33,8 +34,8 @@ async function uploadToGeminiFiles(filePath: string, mimeType: string, displayNa
   const apiKey = ENV.googleAiApiKey;
   if (!apiKey) throw new Error("GOOGLE_AI_API_KEY is not configured");
 
-  const buffer = readFileSync(filePath);
-  const fileSize = buffer.length;
+  // ファイルサイズのみ取得（ファイル全体をメモリに読み込まない）
+  const fileSize = statSync(filePath).size;
 
   // Step 1: Start resumable upload session
   const initRes = await fetch(
@@ -60,7 +61,10 @@ async function uploadToGeminiFiles(filePath: string, mimeType: string, displayNa
   const uploadUrl = initRes.headers.get("x-goog-upload-url");
   if (!uploadUrl) throw new Error("Gemini Files API: upload URL not returned");
 
-  // Step 2: Upload file bytes
+  // Step 2: ファイルをストリーミングで送信（メモリに全展開しない）
+  const nodeStream = createReadStream(filePath);
+  const webStream = Readable.toWeb(nodeStream) as ReadableStream;
+
   const uploadRes = await fetch(uploadUrl, {
     method: "POST",
     headers: {
@@ -68,7 +72,9 @@ async function uploadToGeminiFiles(filePath: string, mimeType: string, displayNa
       "X-Goog-Upload-Offset": "0",
       "X-Goog-Upload-Command": "upload, finalize",
     },
-    body: buffer,
+    body: webStream,
+    // @ts-ignore Node.js fetch requires duplex for streaming bodies
+    duplex: "half",
   });
 
   if (!uploadRes.ok) {
