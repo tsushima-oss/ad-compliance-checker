@@ -486,6 +486,33 @@ export default function Home() {
                     },
                   ],
                 },
+                {
+                  category: "インフルエンサー広告ガイドライン",
+                  categoryColor: "text-teal-600",
+                  categoryBg: "bg-teal-50 border-teal-100",
+                  items: [
+                    {
+                      name: "ステルスマーケティング規制（消費者庁告示）",
+                      articles: "景品表示法 第5条第3号・令和5年10月施行",
+                      url: "https://www.caa.go.jp/policies/policy/representation/fair_labeling/stealth_marketing/",
+                      checks: ["#PRなしの案件投稿", "企業案件を口コミ・体験談に偽装した表現", "ハッシュタグでの広告表示の不備"],
+                    },
+                    {
+                      name: "インフルエンサーマーケティングプラットフォーム ガイドライン（業界事例）",
+                      articles: "健康食品・化粧品・金融・アルコール・ギャンブル等カテゴリ別規制",
+                      url: "",
+                      checks: [
+                        "健康食品の疾病予防・治療効果の標榜",
+                        "化粧品の56効能範囲外の効果表現",
+                        "美容機器の医療的効果標榜（認証なし）",
+                        "金融商品のリスク未開示・断定的利益表現",
+                        "アルコール広告の未成年禁止表記の欠如",
+                        "ギャンブルの高額当選・勝率の強調",
+                        "人材紹介の許可番号未表示・求職者費用請求示唆",
+                      ],
+                    },
+                  ],
+                },
               ].map((group) => (
                 <div key={group.category} className={cn("rounded-xl border p-5", group.categoryBg)}>
                   <span className={cn("text-xs font-semibold uppercase tracking-wider", group.categoryColor)}>
@@ -495,15 +522,21 @@ export default function Home() {
                     {group.items.map((item) => (
                       <div key={item.name}>
                         <div className="flex items-start gap-1.5 mb-1.5">
-                          <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs font-medium text-foreground hover:underline underline-offset-2 flex items-center gap-1 leading-snug"
-                          >
-                            {item.name}
-                            <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
-                          </a>
+                          {item.url ? (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-medium text-foreground hover:underline underline-offset-2 flex items-center gap-1 leading-snug"
+                            >
+                              {item.name}
+                              <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
+                            </a>
+                          ) : (
+                            <span className="text-xs font-medium text-foreground leading-snug">
+                              {item.name}
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground mb-2">{item.articles}</p>
                         <div className="flex flex-wrap gap-1.5">
