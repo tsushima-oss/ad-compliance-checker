@@ -305,6 +305,15 @@ export default function ResultPage() {
         </div>
 
 
+        {/* スクリーニング注意書き */}
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mb-6 no-print">
+          <Info className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-800 leading-relaxed">
+            <span className="font-semibold">このチェック結果はAIによる一次スクリーニングです。</span>
+            「確認すべき箇所の候補」として活用し、最終的な適法性の判断は弁護士・薬事コンサルタント等の専門家にご確認ください。
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 左カラム：画像・総合評価 */}
           <div className="lg:col-span-1 space-y-4">

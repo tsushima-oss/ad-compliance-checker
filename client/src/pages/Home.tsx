@@ -153,6 +153,15 @@ export default function Home() {
             薬機法・景品表示法・医療広告ガイドラインに照らし合わせ、
             違反箇所とリスクレベルを分かりやすくレポートします。
           </p>
+
+          {/* スクリーニングツール注意書き */}
+          <div className="mt-6 inline-flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-left max-w-xl mx-auto">
+            <Info className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 leading-relaxed">
+              <span className="font-semibold">本ツールはAIによる一次スクリーニングです。</span>
+              チェック結果は「確認すべき箇所の候補」として活用し、最終的な適法性の判断は必ず弁護士・薬事コンサルタント等の専門家にご確認ください。
+            </p>
+          </div>
         </div>
 
         {/* アップロードエリア */}
