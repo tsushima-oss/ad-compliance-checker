@@ -313,7 +313,7 @@ export default function Home() {
                 color: "text-amber-500",
                 bg: "bg-amber-50",
                 title: "景品表示法",
-                desc: "優良誤認・有利誤認表示、根拠のない最上級表現・割引表示などを検出",
+                desc: "優良誤認・有利誤認表示、根拠のない最上級表現・割引表示、キャンペーン・懸賞広告の景品規制違反を検出",
               },
               {
                 icon: CheckCircle2,
@@ -430,15 +430,21 @@ export default function Home() {
                   items: [
                     {
                       name: "不当景品類及び不当表示防止法（景品表示法）",
-                      articles: "第5条第1号（優良誤認表示の禁止）、第5条第2号（有利誤認表示の禁止）",
+                      articles: "第5条第1号（優良誤認表示の禁止）、第5条第2号（有利誤認表示の禁止）、第4条（景品類の制限・禁止）",
                       url: "https://laws.e-gov.go.jp/law/337AC0000000134",
                       checks: ["根拠のない最上級表現（No.1・日本一等）", "不当な価格表示・割引表示", "期間限定・数量限定の虚偽表示"],
+                    },
+                    {
+                      name: "景品類の制限及び禁止に関する公正取引委員会告示（一般懸賞・総付景品・共同懸賞）",
+                      articles: "一般懸賞：取引価額の20倍または10万円以下 ／ 総付景品：取引価額の20%以下 ／ 共同懸賞：50倍または30万円以下",
+                      url: "https://www.caa.go.jp/policies/policy/representation/fair_labeling/premium_regulation/",
+                      checks: ["景品上限超過", "「必ず当たる」「全員プレゼント」の虚偽", "当選確率・条件の非表示", "先着・抽選の誤表示", "SNS懸賞の景品規制違反", "ポイント還元・特典条件の不明示"],
                     },
                     {
                       name: "打消し表示に関する実態調査報告書（消費者庁）",
                       articles: "令和3年3月 消費者庁",
                       url: "https://www.caa.go.jp/policies/policy/representation/fair_labeling/pdf/fair_labeling_210330_0001.pdf",
-                      checks: ["打消し表示の不備", "条件・例外の不明瞭な表示"],
+                      checks: ["打消し表示の不備", "応募条件・対象商品・期間の不明瞭な表示"],
                     },
                   ],
                 },
