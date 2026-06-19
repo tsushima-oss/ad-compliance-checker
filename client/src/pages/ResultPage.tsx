@@ -1,4 +1,4 @@
-import { useParams, useLocation } from "wouter";
+﻿import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import AppNav from "@/components/AppNav";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
   Loader2,
   Video,
   Printer,
+  MonitorSmartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -29,7 +30,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 type RiskLevel = "high" | "medium" | "low";
-type Category = "yakujiho" | "keihyo" | "iryokokoku" | "gyoseishoshi" | "other";
+type Category = "yakujiho" | "keihyo" | "iryokokoku" | "gyoseishoshi" | "ad_platform" | "other";
 type OverallRisk = "high" | "medium" | "low" | "safe";
 
 const CATEGORY_LABELS: Record<Category, { label: string; color: string; bg: string; icon: typeof AlertTriangle }> = {
@@ -37,6 +38,7 @@ const CATEGORY_LABELS: Record<Category, { label: string; color: string; bg: stri
   keihyo: { label: "景品表示法", color: "text-amber-600", bg: "bg-amber-50 border-amber-200", icon: AlertTriangle },
   iryokokoku: { label: "医療広告GL", color: "text-blue-600", bg: "bg-blue-50 border-blue-200", icon: Info },
   gyoseishoshi: { label: "行政書士法・士業法", color: "text-purple-600", bg: "bg-purple-50 border-purple-200", icon: Scale },
+  ad_platform: { label: "広告プラットフォームポリシー", color: "text-cyan-700", bg: "bg-cyan-50 border-cyan-200", icon: MonitorSmartphone },
   other: { label: "その他", color: "text-slate-600", bg: "bg-slate-50 border-slate-200", icon: ShieldAlert },
 };
 

@@ -519,6 +519,41 @@ export default function Home() {
                     },
                   ],
                 },
+                {
+                  category: "広告プラットフォームポリシー",
+                  categoryColor: "text-cyan-700",
+                  categoryBg: "bg-cyan-50 border-cyan-100",
+                  items: [
+                    {
+                      name: "Meta広告ポリシー（Facebook・Instagram）",
+                      articles: "禁止コンテンツ・制限付きカテゴリ・広告テキスト規定",
+                      url: "https://www.facebook.com/policies/ads/",
+                      checks: [
+                        "個人属性への直接言及（「あなたは太っていますか？」等）",
+                        "ビフォーアフター画像の使用",
+                        "センセーショナル・クリックベイト表現",
+                        "虚偽・誇大な主張",
+                        "差別的コンテンツ",
+                        "ギャンブル・金融・医薬品の事前承認なし出稿",
+                        "Metaブランドの不正使用",
+                      ],
+                    },
+                    {
+                      name: "Google広告ポリシー",
+                      articles: "禁止コンテンツ・制限付きカテゴリ・広告品質規定",
+                      url: "https://support.google.com/adspolicy/answer/6008942",
+                      checks: [
+                        "根拠のない主張・誇大広告",
+                        "句読点・記号・大文字の乱用（感嘆符連続等）",
+                        "クリックベイト（LPと内容が著しく異なる）",
+                        "医療・医薬品の未認定広告",
+                        "金融サービスのリスク未開示",
+                        "ギャンブルの地域承認なし出稿",
+                        "Googleブランドの不正使用",
+                      ],
+                    },
+                  ],
+                },
               ].map((group) => (
                 <div key={group.category} className={cn("rounded-xl border p-5", group.categoryBg)}>
                   <span className={cn("text-xs font-semibold uppercase tracking-wider", group.categoryColor)}>

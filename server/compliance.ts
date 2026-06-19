@@ -2,7 +2,7 @@ import { invokeLLM, type Message } from "./_core/llm";
 import { ENV } from "./_core/env";
 
 export type RiskLevel = "high" | "medium" | "low";
-export type Category = "yakujiho" | "keihyo" | "iryokokoku" | "gyoseishoshi" | "other";
+export type Category = "yakujiho" | "keihyo" | "iryokokoku" | "gyoseishoshi" | "ad_platform" | "other";
 export type OverallRisk = "high" | "medium" | "low" | "safe";
 
 export interface ViolationItem {
@@ -119,6 +119,42 @@ const SYSTEM_PROMPT = `あなたは日本の広告規制の専門家です。
    - 「無料相談」を謳いつつ実質的に有料となる不当表示
    - 「〇〇士監修」「〇〇士推薦」などの虚偽の資格者関与の表示
 
+6. Meta広告ポリシー（Facebook・Instagram広告）
+   【禁止コンテンツ】
+   - 誤解を招くまたは虚偽のコンテンツ・根拠のない主張
+   - センセーショナルな表現（「衝撃」「絶対に見て」「信じられない」等のクリックベイト）
+   - ユーザーの個人属性への直接言及（「あなたは太っていますか？」「借金でお困りの方へ」等、健康・財務・外見への言及）
+   - ビフォーアフター画像の使用（身体的変化の比較表現）
+   - 差別的コンテンツ（人種・宗教・性別・年齢・性的指向・障害等による差別的表現）
+   - 「Facebook」「Instagram」「Meta」のブランド・ロゴの不正使用
+   - 自動再生動画内での過度に刺激的・暴力的な映像冒頭表現
+   【制限付きカテゴリ（事前承認・条件付き）】
+   - アルコール広告：未成年ターゲティングの禁止、年齢制限設定が必要
+   - ギャンブル・宝くじ：Metaの事前書面による許可が必要
+   - 金融サービス：リスク・手数料の開示、誇大な利益表現の禁止
+   - 医薬品・オンライン薬局：処方薬・市販薬の直接販売広告は原則禁止（認定薬局除く）
+   - サプリメント：筋肉増強・性的能力向上を示唆するものは禁止
+   - 政治・社会的問題：免責事項の表示義務
+
+7. Google広告ポリシー
+   【禁止コンテンツ】
+   - 偽造品・模倣品の広告
+   - 危険な製品・サービス（違法薬物・爆発物等）
+   - 不正行為を可能にする製品（ハッキングツール・不正ソフト等）
+   - 誇大広告・根拠のない主張（「世界最高」「100%効果保証」等）
+   - クリックベイト（広告内容とランディングページの内容が著しく異なる）
+   【広告テキストの品質規定】
+   - 句読点・記号の乱用（「今すぐ！！！！」「SALE!!!」等、感嘆符の連続使用）
+   - 大文字の乱用（意味のないすべて大文字表記）
+   - 繰り返し・冗長な表現（同じ単語の不必要な繰り返し）
+   - スペースや改行を使った意図的な規制回避表現
+   【制限付きカテゴリ（条件付き）】
+   - アルコール：地域の法令に準拠、年齢ターゲティング必須
+   - 医療・医薬品：Google認定薬局以外の処方薬販売広告は禁止、医療機器の誇大表現禁止
+   - 金融サービス：リスク開示・手数料明示が必要、保証・確実な利益表現の禁止
+   - ギャンブル：地域ごとの事前承認が必要
+   - 「Google」ブランドの不正使用・Googleロゴの改変使用
+
 【リスクレベルの定義】
 - high（高リスク）：法令違反の可能性が高く、行政処分・罰則の対象になりうる表現
 - medium（中リスク）：グレーゾーンだが問題になりやすい表現、要注意
@@ -129,6 +165,7 @@ const SYSTEM_PROMPT = `あなたは日本の広告規制の専門家です。
 - keihyo：景品表示法違反の可能性がある表現
 - iryokokoku：医療広告ガイドライン違反の可能性がある表現
 - gyoseishoshi：行政書士法・弁護士法・司法書士法等の士業法違反の可能性がある表現
+- ad_platform：Meta（Facebook/Instagram）・Google広告の出稿ポリシー違反の可能性がある表現
 - other：その他の広告規制上の懸念
 
 指示に従い、提供されたテキストを厳密に審査してください。`;
@@ -278,7 +315,7 @@ ${extractedText}
               items: {
                 type: "object",
                 properties: {
-                  category: { type: "string", enum: ["yakujiho", "keihyo", "iryokokoku", "gyoseishoshi", "other"] },
+                  category: { type: "string", enum: ["yakujiho", "keihyo", "iryokokoku", "gyoseishoshi", "ad_platform", "other"] },
                   riskLevel: { type: "string", enum: ["high", "medium", "low"] },
                   violationText: { type: "string" },
                   reason: { type: "string" },
